@@ -220,6 +220,7 @@ def generate_speech_contribution_from_input(transcript: str) -> None:
     Will call a TTS function from the command line to vocalise."""
     # change the below to look for different keywords
     # Note currently works for Mac (change mac_system to True)
+    print("transcript:", transcript)
     mac_system = False
     if mac_system:
         if re.search(r"\b(today)\b", transcript, re.I):
@@ -230,7 +231,7 @@ def generate_speech_contribution_from_input(transcript: str) -> None:
             os.system('say "great . its good to learn"')
 
 
-def listen_print_loop(responses: object, stream: object) -> None:
+def listen_print_loop(responses: object, stream: object, wg: list, lcp:  int):
     """Iterates through server responses and prints them.
 
     The responses passed is a generator that will block until a response
@@ -263,7 +264,18 @@ def listen_print_loop(responses: object, stream: object) -> None:
             continue
 
         transcript = result.alternatives[0].transcript
-        # print("alternatives", result.alternatives)
+        print("alternatives", result.alternatives)
+
+        for word_info in result.alternatives[0].words:
+            word = word_info.word
+            start_time = word_info.start_time
+            end_time = word_info.end_time
+
+            print(
+                f"Word: {word}, start_time: {start_time.total_seconds()}, end_time: {end_time.total_seconds()}"
+            )
+
+
 
         result_seconds = 0
         result_micros = 0
@@ -284,6 +296,21 @@ def listen_print_loop(responses: object, stream: object) -> None:
         # Display interim results, but with a carriage return at the end of the
         # line, so subsequent lines will overwrite them.
 
+        transcript = transcript.strip(" ")
+        if len(transcript) > 0:
+            words = transcript.split(" ")
+            for i, word in enumerate(words):
+                adjusted_i = i + lcp
+                if adjusted_i < len(wg):
+
+                    if wg[adjusted_i] == word:
+                        continue
+                    else:
+                        wg[adjusted_i] = word 
+                else:
+                    wg.append(word)
+            print("word_graph", wg)
+
         if result.is_final:
             sys.stdout.write(GREEN)
             sys.stdout.write("\033[K")
@@ -293,7 +320,12 @@ def listen_print_loop(responses: object, stream: object) -> None:
             stream.is_final_end_time = stream.result_end_time
             stream.last_transcript_was_final = True
 
-            # Exit recognition if any of the transcribed phrases could be
+            wg.append("<pause/>")
+
+            lcp = len(wg) # last commitment length
+
+            # Exit recognition if exit or quit
+            # Else go to generate speech if any of the transcribed phrases could be
             # one of our keywords.
             if re.search(r"\b(exit|quit)\b", transcript, re.I):
                 sys.stdout.write(YELLOW)
@@ -307,18 +339,33 @@ def listen_print_loop(responses: object, stream: object) -> None:
             sys.stdout.write(RED)
             sys.stdout.write("\033[K")
             sys.stdout.write(str(corrected_time) + ": " + transcript + "\r")
-            # print(str(corrected_time) + ": " + transcript + "\r")
+            print(str(corrected_time) + ": " + transcript + "\r")
+
+
+            # nb only gets triggered just before final status :(
+            for word_info in result.alternatives[0].words:
+                word = word_info.word
+                start_time = word_info.start_time
+                end_time = word_info.end_time
+
+                print(
+                    f"Word: {word}, start_time: {start_time.total_seconds()}, end_time: {end_time.total_seconds()}"
+                )
 
             stream.last_transcript_was_final = False
+    return (wg, lcp)
 
 
 def main() -> None:
+    word_graph = []
+    last_commitment_point = 0
     """start bidirectional streaming from microphone input to speech API"""
     client = speech.SpeechClient()
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
         sample_rate_hertz=SAMPLE_RATE,
         language_code="en-US",
+        enable_word_time_offsets=True,
         max_alternatives=1,
     )
 
@@ -351,7 +398,7 @@ def main() -> None:
             responses = client.streaming_recognize(streaming_config, requests)
 
             # Now, put the transcription responses to use.
-            listen_print_loop(responses, stream)
+            word_graph, last_commitment_point = listen_print_loop(responses, stream, word_graph, last_commitment_point)
 
             if stream.result_end_time > 0:
                 stream.final_request_end_time = stream.is_final_end_time

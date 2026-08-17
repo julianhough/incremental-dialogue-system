@@ -6,7 +6,9 @@ The python demo is modified from:
 
 [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/main/speech/microphone/transcribe_streaming_infinite.py](https://github.com/GoogleCloudPlatform/python-docs-samples/blob/main/speech/microphone/transcribe_streaming_infinite.py```)
 
-* To run the Python demo file `python/transcribe_streaming_infinite.py` you will need to be authenticated by Google Cloud appropriately so that you can use the Speech API, likely using an api key which will be stored locally. Note that you get 60 minutes a month of audio processing free before being charged.
+* You are recommended to create a virtual enviroment to run this demo, using the python venv module.
+
+* To run the Python demo file `python/transcribe_streaming_infinite.py` you will need to be authenticated by Google Cloud appropriately so that you can use the Speech API, likely using an api key which will be stored locally. Note that you get 60 minutes a month of audio processing free before being charged. [https://docs.cloud.google.com/sdk/docs/install-sdk]
 
 * You need to make sure [PortAudio](https://www.portaudio.com/) is installed on your machine and that you have microphone access to the terminal application you run the python file from (you can use the command "brew install portaudio" in mac OS systems to achieve this).
 
