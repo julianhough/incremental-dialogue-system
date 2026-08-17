@@ -1,0 +1,7 @@
+google-cloud-speech
+pyaudio
+six
+sounddevice
+termcolor
+fluteline
+
